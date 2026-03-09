@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 
-const BOT_USERNAME = 'nexus_market_bot' // замени на своего бота
+const BOT_USERNAME = 'my_cheats_bot' // замени на своего бота
 
 // ── Typing animation ────────────────────────────────────────────
 function TypeWriter({ text, speed=60, delay=0 }) {
