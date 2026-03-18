@@ -1146,7 +1146,9 @@ def main():
     app = build_app(engine, tg)
     app.run_polling(
         allowed_updates=Update.ALL_TYPES,
-        drop_pending_updates=True
+        drop_pending_updates=True,
+        close_loop=False,
+        stop_signals=None,
     )
 
 
