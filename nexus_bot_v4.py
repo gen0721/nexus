@@ -500,14 +500,22 @@ class TradingEngine:
     # ── Подключение ──
 
     def connect(self) -> bool:
-        try:
-            self.client = Client(Config.BINANCE_API_KEY, Config.BINANCE_API_SECRET)
-            self.client.ping()
-            log.info("✅ Binance подключён")
-            return True
-        except Exception as e:
-            log.error(f"❌ Binance: {e}")
-            return False
+        # Пробуем разные tld для обхода гео-блокировки Railway
+        for tld in ["com", "us"]:
+            try:
+                self.client = Client(
+                    Config.BINANCE_API_KEY,
+                    Config.BINANCE_API_SECRET,
+                    tld=tld,
+                    requests_params={"timeout": 20}
+                )
+                self.client.ping()
+                log.info(f"✅ Binance подключён (tld={tld})")
+                return True
+            except Exception as e:
+                log.warning(f"Попытка tld={tld} не удалась: {e}")
+        log.error("❌ Binance недоступен. Смени регион Railway на EU (eu-west4)")
+        return False
 
     # ── Данные ──
 
