@@ -781,7 +781,7 @@ class TelegramBot:
 # ══════════════════════════════════════════
 
 def build_app(engine: TradingEngine, tg: TelegramBot) -> Application:
-    app = Application.builder().token(Config.TELEGRAM_TOKEN).build()
+    app = Application.builder().token(Config.TELEGRAM_TOKEN).job_queue(None).build()
 
     # ── Клавиатура ──
     def menu():
@@ -1043,7 +1043,10 @@ def main():
 
     # Запуск Telegram
     app = build_app(engine, tg)
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    app.run_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True
+    )
 
 
 if __name__ == "__main__":
