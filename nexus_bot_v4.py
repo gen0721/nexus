@@ -44,7 +44,7 @@ class Config:
     GROQ_API_KEY       = os.environ.get("GROQ_API_KEY",       "ВСТАВЬ_GROQ_KEY")
 
     # ── Groq ──
-    GROQ_MODEL         = "llama3-70b-8192"   # Бесплатная мощная модель
+    GROQ_MODEL         = "llama-3.3-70b-versatile"   # Бесплатная мощная модель
 
     # ── Торговые пары ──
     TRADING_PAIRS      = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "ADAUSDT"]
