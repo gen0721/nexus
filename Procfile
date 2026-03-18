@@ -1,1 +1,1 @@
-worker: python nexus_bot_v3.py
+worker: python nexus_bot_v4.py
