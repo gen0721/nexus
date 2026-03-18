@@ -781,7 +781,7 @@ class TelegramBot:
 # ══════════════════════════════════════════
 
 def build_app(engine: TradingEngine, tg: TelegramBot) -> Application:
-    app = Application.builder().token(Config.TELEGRAM_TOKEN).job_queue(None).build()
+    app = Application.builder().token(Config.TELEGRAM_TOKEN).build()
 
     # ── Клавиатура ──
     def menu():
