@@ -939,17 +939,95 @@ def build_app(engine: TradingEngine, tg: TelegramBot) -> Application:
     async def btn_handler(u: Update, ctx: ContextTypes.DEFAULT_TYPE):
         q = u.callback_query
         await q.answer()
-        u.message = q.message
-        handlers = {
-            "run": h_run, "stop": h_stop,
-            "balance": h_balance, "positions": h_positions,
-            "analyze": h_analyze, "stats": h_stats,
-            "market": h_market, "signals": h_signals,
-            "closeall": h_closeall,
-        }
-        handler = handlers.get(q.data)
-        if handler:
-            await handler(u, ctx)
+        msg = q.message
+        data = q.data
+
+        reply = msg.reply_text
+
+        if data == "run":
+            engine.running = True
+            await reply("▶️ <b>Торговля запущена!</b>", parse_mode="HTML")
+        elif data == "stop":
+            engine.running = False
+            await reply("⏹ <b>Торговля остановлена.</b>", parse_mode="HTML")
+        elif data == "balance":
+            bal = engine.all_balances()
+            lines = ["💼 <b>Баланс:</b>
+"] + [f"  <b>{k}</b>: {v:.6f}" for k, v in bal.items()]
+            await reply("
+".join(lines), parse_mode="HTML")
+        elif data == "positions":
+            if not engine.positions:
+                await reply("📭 Нет позиций"); return
+            lines = ["📋 <b>Позиции:</b>
+"]
+            for sym, pos in engine.positions.items():
+                p = engine.price(sym)
+                pnl = pos.pnl(p)
+                e = "🟢" if pnl >= 0 else "🔴"
+                lines.append(f"{e} <b>{sym}</b>: {e} ${pnl:+.4f} ({pos.pnl_pct(p):+.2f}%)
+  Вход ${pos.entry_price:.4f} | SL ${pos.stop_loss:.4f} | TP ${pos.take_profit:.4f}
+")
+            await reply("
+".join(lines), parse_mode="HTML")
+        elif data == "stats":
+            s = engine.risk.stats()
+            e = "🟢" if s["daily_pnl"] >= 0 else "🔴"
+            await reply(
+                f"📈 <b>Статистика:</b>
+Сделок: {s["total"]} | Побед: {s["wins"]}
+Win Rate: {s["win_rate"]:.1f}%
+P&L день: {e} ${s["daily_pnl"]:+.4f}
+P&L всего: ${s["total_pnl"]:+.4f}
+Groq вызовов: {engine.groq.calls}",
+                parse_mode="HTML"
+            )
+        elif data == "analyze":
+            m2 = await reply("🧠 Анализирую...", parse_mode="HTML")
+            lines = ["📊 <b>AI Анализ:</b>
+"]
+            for symbol in Config.TRADING_PAIRS:
+                df = engine.analyzer.get_candles(engine.client, symbol, "1h", 200)
+                ta_sig, ta_sc, ind, reasons = engine.analyzer.multi_tf_signal(engine.client, symbol)
+                groq = engine.groq.analyze(symbol, ind, ta_sig, ta_sc) if ta_sc >= 50 else {}
+                te = {"BUY":"📈","SELL":"📉","HOLD":"⏸"}.get(ta_sig,"❓")
+                lines.append(f"{te} <b>{symbol}</b>: TA {ta_sig} {ta_sc}% | Groq {groq.get("decision","?")}) {groq.get("confidence",0)}%
+")
+            await m2.edit_text("
+".join(lines), parse_mode="HTML")
+        elif data == "market":
+            m2 = await reply("🌍 Groq анализирует...")
+            pd_list = []
+            for sym in Config.TRADING_PAIRS:
+                try:
+                    t = engine.client.get_ticker(symbol=sym)
+                    pd_list.append({"symbol":sym,"price":float(t["lastPrice"]),"chg":float(t["priceChangePercent"])})
+                except: pass
+            ov = engine.groq.market_overview(pd_list)
+            me = {"BULLISH":"🟢","BEARISH":"🔴","NEUTRAL":"🟡"}.get(ov.get("mood",""),"⚪")
+            await m2.edit_text(f"🌍 <b>Рынок:</b> {me} {ov.get("mood","?")}
+{ov.get("summary","")}
+Лучшая: {ov.get("best_pair","?")}
+Риск: {ov.get("risk","?")}", parse_mode="HTML")
+        elif data == "signals":
+            if not engine.signal_log:
+                await reply("Нет сигналов"); return
+            lines = ["📜 <b>Сигналы:</b>
+"]
+            for s in list(engine.signal_log)[-8:][::-1]:
+                fe = {"BUY":"📈","SELL":"📉","HOLD":"⏸"}.get(s["final"],"❓")
+                lines.append(f"{fe} {s["symbol"]} {s["time"]} | TA:{s["ta_score"]}% Groq:{s["groq_score"]}% → {s["final"]}
+")
+            await reply("
+".join(lines), parse_mode="HTML")
+        elif data == "closeall":
+            if not engine.positions:
+                await reply("Нет позиций"); return
+            await reply("⚠️ Закрываю все позиции...")
+            for sym in list(engine.positions.keys()):
+                trade = engine.close_position(sym, "Ручное закрытие")
+                if trade: tg.notify_close(trade)
+            await reply("✅ Все позиции закрыты")
 
     # Регистрация
     cmds = [("start",h_start),("balance",h_balance),("positions",h_positions),
